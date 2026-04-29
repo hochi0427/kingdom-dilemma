@@ -514,7 +514,7 @@ export const storylets = [
   {
     id: "violation-of-sanctuary",
     title: "Violation of Sanctuary",
-    season: "Autumn",
+    season: "Any",
     trigger: { type: "random" },
     scenario:
       "A wanted knight has taken sanctuary at the high altar, still wearing blood on his sleeve. Your guards wait outside the church doors while the city gathers to watch.",

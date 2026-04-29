@@ -27,31 +27,80 @@ const currentStorylet = computed(() =>
 
 const endingText = computed(() => (ending.value ? endings[ending.value] : ''));
 const turnProgress = computed(() => `${(Math.min(turn.value, finalTurn) / finalTurn) * 100}%`);
+const currentSeason = computed(() => getCurrentSeason(turn.value));
+
+const seasonByTurn = {
+  1: "Spring",
+  2: "Spring",
+  3: "Summer",
+  4: "Summer",
+  5: "Autumn",
+  6: "Autumn",
+  7: "Winter",
+  8: "Winter",
+  9: "Winter",
+  10: "Spring"
+};
+
+function getCurrentSeason(currentTurn) {
+  return seasonByTurn[currentTurn];
+}
+
+function matchesSeason(storylet, season) {
+  return storylet.season === season || storylet.season === "Any";
+}
+
+function isTriggered(storylet, currentStats) {
+  if (storylet.trigger.type !== 'stat') {
+    return false;
+  }
+
+  const value = currentStats[storylet.trigger.stat];
+  return storylet.trigger.operator === '<=' && value <= storylet.trigger.value;
+}
+
+function pickStorylet(candidates) {
+  if (!candidates.length) {
+    return null;
+  }
+
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
 
 function findNextStorylet(currentTurn, currentStats) {
+  const currentSeason = seasonByTurn[currentTurn];
   const unseen = storylets.filter((storylet) => !seenStoryletIds.value.includes(storylet.id));
+  const available = unseen.filter((storylet) => matchesSeason(storylet, currentSeason));
   const fixed = unseen.find(
-    (storylet) => storylet.trigger.type === 'fixed' && storylet.trigger.turn === currentTurn
+    (storylet) =>
+      storylet.trigger.type === 'fixed' &&
+      storylet.trigger.turn === currentTurn &&
+      matchesSeason(storylet, currentSeason)
   );
 
   if (fixed) {
     return fixed;
   }
 
-  const statTriggered = unseen.find((storylet) => {
-    if (storylet.trigger.type !== 'stat') {
-      return false;
-    }
+  const triggered = available.filter((storylet) => isTriggered(storylet, currentStats));
+  const exactSeasonTriggered = triggered.filter((storylet) => storylet.season === currentSeason);
 
-    const value = currentStats[storylet.trigger.stat];
-    return storylet.trigger.operator === '<=' && value <= storylet.trigger.value;
-  });
-
-  if (statTriggered) {
-    return statTriggered;
+  if (exactSeasonTriggered.length) {
+    return pickStorylet(exactSeasonTriggered);
   }
 
-  return unseen.find((storylet) => storylet.trigger.type === 'random') ?? unseen[0];
+  if (triggered.length) {
+    return pickStorylet(triggered);
+  }
+
+  const random = available.filter((storylet) => storylet.trigger.type === 'random');
+  const exactSeasonRandom = random.filter((storylet) => storylet.season === currentSeason);
+
+  if (exactSeasonRandom.length) {
+    return pickStorylet(exactSeasonRandom);
+  }
+
+  return pickStorylet(random);
 }
 
 function clampStat(value) {
@@ -155,7 +204,7 @@ function restart() {
       <div class="progress-section">
         <div class="progress-top">
           <span>Progress</span>
-          <strong>Turn {{ turn }} / {{ finalTurn }}</strong>
+          <strong>{{ currentSeason }} · Turn {{ turn }} / {{ finalTurn }}</strong>
         </div>
         <div class="progress-bar" aria-label="Turn progress">
           <div class="progress-fill" :style="{ width: turnProgress }"></div>
